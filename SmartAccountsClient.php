@@ -97,7 +97,11 @@ class SmartAccountsClient
         // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
         if ($this->isAnonymous) {
             return $this->getAnonymousClient($response["Customers"],  $this->name, $this->country);
-        } else {
+
+        } elseif ($this->getLoggedInClient()){
+            return $this->getLoggedInClient($response["Customers"], $this->country, $this->name, $this->email);
+
+             } else{
             return $this->addNewSaClient($this->name, $this->NotTDCustomer, $this->country);
         }
     }
