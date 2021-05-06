@@ -12,6 +12,7 @@ class SmartAccountsClient
     protected $isAnonymous;
     protected $email;
     protected $name;
+    protected $regCode;
     protected $country;
     protected $isCompany;
 
@@ -26,7 +27,7 @@ class SmartAccountsClient
     /**
      * SmartAccountsClient constructor.
      *
-     /* @param $order WC_Order
+    /* @param $order WC_Order
      */
 
 
@@ -64,16 +65,16 @@ class SmartAccountsClient
      * current WooCommerce order do not exist then will create new client.
      * Comparison is done with name, country and e-mail
      *
-     /* @return SmartAccountsClient
+    /* @return SmartAccountsClient
      */
     public function getClient()
     {
         $endpoint = "getcustomers";
 
         if ($this->order->meta_exists('_billing_regno')) {
-            $regCode = $this->order->get_meta('_billing_regno', true);
-            $requestData = ['RegNo' => $regCode];
-            $response = $this->api->sendRequest($requestData, $endpoint);
+            $regNo = $this->order->get_meta('_billing_regno', true); // Otsib esiteks firma registrikoodi järgi
+            $requestData = ['RegNo' => $regNo];
+            $response = $this->api->sendRequest($requestData, $endpoint); // Pöörab sendRequest funktsiooni saada pääringu
         } else {
             // Remove all that are not company "main" part of name
             $pres = ['oü', 'as', 'fie', 'mtü', 'kü'];
@@ -90,18 +91,18 @@ class SmartAccountsClient
 
             $response = $this->api->sendRequest($requestData, $endpoint);
 
-            // wp_send_json($response);
-            //echo 'test';die;
+           wp_send_json(['response on',$requestData[0]]);
+
         }
 
         // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
-        if ($this->isAnonymous) {
+        if ($this -> name = 0 ) {
             return $this->getAnonymousClient($response["Customers"],  $this->name, $this->country);
 
-        } elseif ($this->getLoggedInClient()){
+        } elseif ($this -> name != 0){
             return $this->getLoggedInClient($response["Customers"], $this->country, $this->name, $this->email);
 
-             } else{
+        } else{
             return $this->addNewSaClient($this->name, $this->NotTDCustomer, $this->country);
         }
     }
@@ -243,10 +244,3 @@ class SmartAccountsClient
     }
 
 }
-
-
-
-
-
-
-

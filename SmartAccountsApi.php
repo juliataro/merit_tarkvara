@@ -20,8 +20,8 @@ class SmartAccountsApi
         $ch = curl_init();
 
         // random test company
-        $APIID = "eb854b11-db9c-495f-a108-ce5fbcb59ccb";
-        $APIKEY = "883GM0TSFxJqg/OANR5fgKi5U3FIHeEgICt4M7ZsAds=";
+        $APIID = "eb854b11-db9c-495f-a108-ce5fbcb59ccb"; // E-poe firma isiklik ID
+        $APIKEY = "883GM0TSFxJqg/OANR5fgKi5U3FIHeEgICt4M7ZsAds="; // E-poe firma isiklik priivatne võti
         $TIMESTAMP = date("YmdHis");
 
         $signature = $this->signURL($APIID,$APIKEY, $TIMESTAMP,  json_encode($requestData));
@@ -29,10 +29,10 @@ class SmartAccountsApi
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($requestData));
         curl_exec($ch);
-        if(curl_getinfo($ch, CURLINFO_RESPONSE_CODE) != 200) {
-            print("ERROR ".curl_getinfo($ch, CURLINFO_RESPONSE_CODE)."\r\n");
-            print_r(curl_getinfo($ch));
-        }
+     //   if(curl_getinfo($ch, CURLINFO_RESPONSE_CODE) != 200) {
+      //     print("ERROR ".curl_getinfo($ch, CURLINFO_RESPONSE_CODE)."\r\n");
+      //      print_r(curl_getinfo($ch));
+      //  }
         curl_close($ch); // closing connection
 
     }
