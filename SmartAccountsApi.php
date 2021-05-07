@@ -20,7 +20,7 @@ class SmartAccountsApi
 
         /* Kui JSON on tühi, siis luuakse uus vaikimise tühi PHP objekt,
         mida kastomiseerides saab saada assoatiivse massiivi võtmed,
-        antud juhul kasutatakse et saada uut klienti andmet*/
+        antud juhul kasutatakse, et saada uut klienti andmet*/
         if ($requestData == null) {
             $requestData = new stdClass();
         }

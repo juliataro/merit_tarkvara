@@ -98,6 +98,7 @@ class SmartAccountsClient
         }
 
         // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
+
         if ($this->isAnonymous) {
             return $this->getAnonymousClient($response["Customers"],  $this->country, $this->name);
 
@@ -163,6 +164,7 @@ class SmartAccountsClient
 
         $requestData          = new stdClass();
         $requestData->name    = $name;
+        $requestData->name    = $NotTDCustomer;
         $requestData->address = (object)[
             "country"    => $country,
             "city"       => $city,
