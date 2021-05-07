@@ -17,6 +17,14 @@ class SmartAccountsApi
     }
 
     public function sendRequest($requestData, $endpoint) {
+
+        /* Kui JSON on tühi, siis luuakse uus vaikimise tühi PHP objekt,
+        mida kastomiseerides saab saada assoatiivse massiivi võtmed,
+        antud juhul kasutatakse et saada uut klienti andmet*/
+        if ($requestData == null) {
+            $requestData = new stdClass();
+        }
+
         $ch = curl_init();
 
         // random test company
@@ -29,11 +37,12 @@ class SmartAccountsApi
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($requestData));
         curl_exec($ch);
-     //   if(curl_getinfo($ch, CURLINFO_RESPONSE_CODE) != 200) {
-      //     print("ERROR ".curl_getinfo($ch, CURLINFO_RESPONSE_CODE)."\r\n");
-      //      print_r(curl_getinfo($ch));
-      //  }
+        if(curl_getinfo($ch, CURLINFO_RESPONSE_CODE) != 200) {
+        print("ERROR ".curl_getinfo($ch, CURLINFO_RESPONSE_CODE)."\r\n");
+        print_r(curl_getinfo($ch));
+       }
         curl_close($ch); // closing connection
+
 
     }
 }

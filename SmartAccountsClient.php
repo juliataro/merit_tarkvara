@@ -12,9 +12,10 @@ class SmartAccountsClient
     protected $isAnonymous;
     protected $email;
     protected $name;
-    protected $regCode;
     protected $country;
     protected $isCompany;
+    protected $customerId;
+    protected $regNo;
 
     /** @var SmartAccountsApi */
     protected $api;
@@ -61,7 +62,7 @@ class SmartAccountsClient
     }
 
     /**
-     * This method will look for SmartAccounts clients and if no customers related to
+     * This method will look for Merit clients and if no customers related to
      * current WooCommerce order do not exist then will create new client.
      * Comparison is done with name, country and e-mail
      *
@@ -70,6 +71,7 @@ class SmartAccountsClient
     public function getClient()
     {
         $endpoint = "getcustomers";
+
 
         if ($this->order->meta_exists('_billing_regno')) {
             $regNo = $this->order->get_meta('_billing_regno', true); // Otsib esiteks firma registrikoodi järgi
@@ -96,11 +98,11 @@ class SmartAccountsClient
         }
 
         // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
-        if ($this -> name = 0 ) {
-            return $this->getAnonymousClient($response["Customers"],  $this->name, $this->country);
+        if ($this->isAnonymous) {
+            return $this->getAnonymousClient($response["Customers"],  $this->country, $this->name);
 
-        } elseif ($this -> name != 0){
-            return $this->getLoggedInClient($response["Customers"], $this->country, $this->name, $this->email);
+        } elseif ($this -> regNo != 0 || $this -> name != 0){
+            return $this->getLoggedInClient($response["Customers"], $this->country, $this->name, $this->customerId);
 
         } else{
             return $this->addNewSaClient($this->name, $this->NotTDCustomer, $this->country);
@@ -110,7 +112,7 @@ class SmartAccountsClient
     /**
      * Returns SmartAccounts general client for this country. Creates new if it does not exist yet.
      */
-    private function getAnonymousClient($response, $country, $name)
+    private function getAnonymousClient($response, $name, $country)
     {
         foreach ($response as $client) {
             // Here $client is another entry form Merit $response
@@ -161,7 +163,6 @@ class SmartAccountsClient
 
         $requestData          = new stdClass();
         $requestData->name    = $name;
-        $requestData          = $NotTDCustomer;
         $requestData->address = (object)[
             "country"    => $country,
             "city"       => $city,

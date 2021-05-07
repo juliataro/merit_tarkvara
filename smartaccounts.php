@@ -67,7 +67,7 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
 }
 
 function juliaTestib() {
-    $order = wc_get_order(93); // vottab andmed konkreetsest tellimusest
+    $order = wc_get_order(96); // vottab andmed konkreetsest tellimusest
     $merit=new SmartAccountsClient($order); //andmed konkreetse tellimmuse
     $merit->getClient(); //otsib andmed seotud seda funktsiooniga
 }
