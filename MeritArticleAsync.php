@@ -11,7 +11,7 @@ include_once 'wp-background-process.php';
 class MeritArticleAsync extends WP_Background_Process
 {
 
-    public static function syncSaProducts()
+    public static function syncMeritProducts()
     {
         error_log('Starting to sync products from Merit');
         $api             = new MeritApi();

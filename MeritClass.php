@@ -14,17 +14,17 @@ class MeritClass
 {
     public static function orderOfferStatusProcessing($order_id)
     {
-        error_log("Order $order_id changed status. Checking if sending OFFER to SmartAccounts");
+        error_log("Order $order_id changed status. Checking if sending OFFER to Merit");
         //try catch makes sure your store will operate even if there are errors
         try {
             $order = wc_get_order($order_id);
-            if (strlen(get_post_meta($order_id, 'smartaccounts_invoice_id', true)) > 0
-                || strlen(get_post_meta($order_id, 'smartaccounts_offer_id', true)) > 0) {
-                error_log("SmartAccounts order $order_id already sent as offer or invoice, not sending OFFER again, SA id="
-                    . get_post_meta($order_id, 'smartaccounts_invoice_id', true) . " offer_id="
-                    . get_post_meta($order_id, 'smartaccounts_offer_id', true));
+            if (strlen(get_post_meta($order_id, 'merit_invoice_id', true)) > 0
+                || strlen(get_post_meta($order_id, 'merit_offer_id', true)) > 0) {
+                error_log("Merit order $order_id already sent as offer or invoice, not sending OFFER again, SA id="
+                    . get_post_meta($order_id, 'merit_invoice_id', true) . " offer_id="
+                    . get_post_meta($order_id, 'merit_offer_id', true));
 
-                return; //Smartaccounts offer is already created
+                return; //Merit offer is already created
             }
 
             $saClient       = new MeritClient($order);
@@ -33,96 +33,96 @@ class MeritClass
 
             $offer = $saSalesInvoice->saveOffer();
 
-            update_post_meta($order_id, 'smartaccounts_offer_id', $offer['offer']['offerId']);
-            update_post_meta($order_id, 'smartaccounts_offer_number', $offer['offer']['offerNumber']);
+            update_post_meta($order_id, 'merit_offer_id', $offer['offer']['offerId']);
+            update_post_meta($order_id, 'merit_offer_number', $offer['offer']['offerNumber']);
             error_log("Offer data: " . json_encode($offer));
-            error_log("SmartAccounts sales offer created for order $order_id=" . $offer['offer']['offerId']);
-            $order->add_order_note("Offer sent to SmartAccounts: " . $offer['offer']['offerNumber']);
+            error_log("Merit sales offer created for order $order_id=" . $offer['offer']['offerId']);
+            $order->add_order_note("Offer sent to Merit: " . $offer['offer']['offerNumber']);
 
-            $offerIdsString = get_option('sa_failed_offers');
+            $offerIdsString = get_option('merit_failed_offers');
             $offerIds       = json_decode($offerIdsString);
             if (is_array($offerIds) && array_key_exists($order_id, $offerIds)) {
                 unset($offerIds[$order_id]);
-                update_option('sa_failed_offers', json_encode($offerIds));
+                update_option('merit_failed_offers', json_encode($offerIds));
                 error_log("Removed $order_id from failed offers array");
             }
         } catch (Exception $exception) {
-            error_log("SmartAccounts error: " . $exception->getMessage() . " " . $exception->getTraceAsString());
+            error_log("Merit error: " . $exception->getMessage() . " " . $exception->getTraceAsString());
 
-            $offerIdsString = get_option('sa_failed_offers');
+            $offerIdsString = get_option('merit_failed_offers');
             $offerIds       = json_decode($offerIdsString);
             if (is_array($offerIds)) {
                 error_log("Adding $order_id to failed offers array $offerIdsString to be retried later");
                 $offerIds[$order_id] = $order_id;
-                update_option('sa_failed_offers', json_encode($offerIds));
+                update_option('merit_failed_offers', json_encode($offerIds));
             } else {
                 error_log("Adding $order_id to new failed offers array. previously $offerIdsString");
                 $offerIds = [$order_id => $order_id];
-                update_option('sa_failed_offers', json_encode($offerIds));
+                update_option('merit_failed_offers', json_encode($offerIds));
             }
 
-            wp_schedule_single_event(time() + 129600, 'sa_retry_failed_job');
-            $order->add_order_note("Offer sending to SmartAccounts failed: " . $exception->getMessage());
+            wp_schedule_single_event(time() + 129600, 'merit_retry_failed_job');
+            $order->add_order_note("Offer sending to Merit failed: " . $exception->getMessage());
         }
     }
 
     public static function orderStatusProcessing($order_id)
     {
-        error_log("Order $order_id changed status. Checking if sending to SmartAccounts");
+        error_log("Order $order_id changed status. Checking if sending to Merit");
         //try catch makes sure your store will operate even if there are errors
         try {
             $order = wc_get_order($order_id);
-            if (strlen(get_post_meta($order_id, 'smartaccounts_invoice_id', true)) > 0) {
-                error_log("SmartAccounts order $order_id already sent, not sending again, SA id="
-                    . get_post_meta($order_id, 'smartaccounts_invoice_id', true));
+            if (strlen(get_post_meta($order_id, 'merit_invoice_id', true)) > 0) {
+                error_log("Merit order $order_id already sent, not sending again, SA id="
+                    . get_post_meta($order_id, 'merit_invoice_id', true));
 
-                return; //Smartaccounts order is already created
+                return; //Merit order is already created
             }
 
-            $saClient       = new MeritClient($order);
-            $client         = $saClient->getClient();
-            $saSalesInvoice = new MeritSalesInvoice($order, $client);
+            $meritClient       = new MeritClient($order);
+            $client         = $meritClient->getClient();
+            $meritSalesInvoice = new MeritSalesInvoice($order, $client);
 
-            $invoice   = $saSalesInvoice->saveInvoice();
-            $saPayment = new MeritPayment($order, $invoice);
-            $saPayment->createPayment();
-            update_post_meta($order_id, 'smartaccounts_invoice_id', $invoice['invoice']['invoiceNumber']);
-            error_log("SmartAccounts sales invoice created for order $order_id - " . $invoice['invoice']['invoiceNumber']);
-            $order->add_order_note("Invoice sent to SmartAccounts: " . $invoice['invoice']['invoiceNumber']);
+            $invoice   = $meritSalesInvoice->saveInvoice();
+            $meritPayment = new MeritPayment($order, $invoice);
+            $meritPayment->createPayment();
+            update_post_meta($order_id, 'merit_invoice_id', $invoice['invoice']['invoiceNumber']);
+            error_log("Merits sales invoice created for order $order_id - " . $invoice['invoice']['invoiceNumber']);
+            $order->add_order_note("Invoice sent to Merit: " . $invoice['invoice']['invoiceNumber']);
 
             $invoiceIdsString = get_option('sa_failed_orders');
             $invoiceIds       = json_decode($invoiceIdsString);
             if (is_array($invoiceIds) && array_key_exists($order_id, $invoiceIds)) {
                 unset($invoiceIds[$order_id]);
-                update_option('sa_failed_orders', json_encode($invoiceIds));
+                update_option('merit_failed_orders', json_encode($invoiceIds));
                 error_log("Removed $order_id from failed orders array");
             }
         } catch (Exception $exception) {
-            error_log("SmartAccounts error: " . $exception->getMessage() . " " . $exception->getTraceAsString());
+            error_log("Merit error: " . $exception->getMessage() . " " . $exception->getTraceAsString());
 
-            $invoiceIdsString = get_option('sa_failed_orders');
+            $invoiceIdsString = get_option('merit_failed_orders');
             $invoiceIds       = json_decode($invoiceIdsString);
             if (is_array($invoiceIds)) {
                 error_log("Adding $order_id to failed orders array $invoiceIdsString to be retried later");
                 $invoiceIds[$order_id] = $order_id;
-                update_option('sa_failed_orders', json_encode($invoiceIds));
+                update_option('merit_failed_orders', json_encode($invoiceIds));
             } else {
                 error_log("Adding $order_id to new failed orders array. previously $invoiceIdsString");
                 $invoiceIds = [$order_id => $order_id];
-                update_option('sa_failed_orders', json_encode($invoiceIds));
+                update_option('merit_failed_orders', json_encode($invoiceIds));
             }
 
-            wp_schedule_single_event(time() + 129600, 'sa_retry_failed_job');
-            $order->add_order_note("Invoice sending to SmartAccounts failed: " . $exception->getMessage());
+            wp_schedule_single_event(time() + 129600, 'merit_retry_failed_job');
+            $order->add_order_note("Invoice sending to Merit failed: " . $exception->getMessage());
         }
     }
 
     public static function retryFailedOrders()
     {
-        $offerIdsString = get_option('sa_failed_offers');
+        $offerIdsString = get_option('merit_failed_offers');
         error_log("Retrying offers $offerIdsString");
 
-        $retryCount = json_decode(get_option('sa_failed_offer_retries'));
+        $retryCount = json_decode(get_option('merit_failed_offer_retries'));
         if (!is_array($retryCount)) {
             $retryCount = [];
         }
@@ -130,7 +130,7 @@ class MeritClass
         $offerIds = json_decode($offerIdsString);
 
         if (is_array($offerIds)) {
-            update_option('sa_failed_offers', json_encode([]));
+            update_option('merit_failed_offers', json_encode([]));
             foreach ($offerIds as $id) {
                 if (array_key_exists($id, $retryCount)) {
                     if ($retryCount[$id] > 3) {
@@ -144,15 +144,15 @@ class MeritClass
                 error_log("Retrying sending offer $id");
                 MeritClass::orderOfferStatusProcessing($id);
             }
-            update_option('sa_failed_offers_retries', json_encode($retryCount));
+            update_option('merit_failed_offers_retries', json_encode($retryCount));
         } else {
             error_log("Unable to parse failed offers: $offerIdsString");
         }
 
-        $invoiceIdsString = get_option('sa_failed_orders');
+        $invoiceIdsString = get_option('merit_failed_orders');
         error_log("Retrying orders $invoiceIdsString");
 
-        $retryCount = json_decode(get_option('sa_failed_orders_retries'));
+        $retryCount = json_decode(get_option('merit_failed_orders_retries'));
         if (!is_array($retryCount)) {
             $retryCount = [];
         }
@@ -160,7 +160,7 @@ class MeritClass
         $invoiceIds = json_decode($invoiceIdsString);
 
         if (is_array($invoiceIds)) {
-            update_option('sa_failed_orders', json_encode([]));
+            update_option('merit_failed_orders', json_encode([]));
             foreach ($invoiceIds as $id) {
                 if (array_key_exists($id, $retryCount)) {
                     if ($retryCount[$id] > 3) {
@@ -174,7 +174,7 @@ class MeritClass
                 error_log("Retrying sending order $id");
                 MeritClass::orderStatusProcessing($id);
             }
-            update_option('sa_failed_orders_retries', json_encode($retryCount));
+            update_option('merit_failed_orders_retries', json_encode($retryCount));
         } else {
             error_log("Unable to parse failed orders: $invoiceIdsString");
         }
@@ -251,7 +251,7 @@ class MeritClass
             $settings->statuses = ['completed', 'processing'];
         }
 
-        update_option('sa_settings', json_encode($settings));
+        update_option('merit_settings', json_encode($settings));
 
         wp_send_json(['status' => "OK", 'settings' => $settings]);
     }
@@ -260,7 +260,7 @@ class MeritClass
     {
         self::convertOldSettings();
 
-        $currentSettings = json_decode(get_option('sa_settings') ? get_option('sa_settings') : "");
+        $currentSettings = json_decode(get_option('merit_settings') ? get_option('merit_settings') : "");
 
         if (!$currentSettings) {
             $currentSettings = new stdClass();
@@ -320,7 +320,7 @@ class MeritClass
                 padding-bottom: 10px;
             }
         </style>
-        <div id="sa-admin" class="wrap">
+        <div id="merit-admin" class="wrap">
             <h1><?= esc_html(get_admin_page_title()); ?></h1>
             <hr>
 
@@ -331,13 +331,13 @@ class MeritClass
                 <small>Please review all settings</small>
             </div>
             <div class="notice notice-error" v-show="!settings.apiKey">
-                <small>Missing SmartAccounts public key</small>
+                <small>Missing Merit public key</small>
             </div>
             <div class="notice notice-error" v-show="!settings.apiSecret">
-                <small>SmartAccounts private key</small>
+                <small>Merit private key</small>
             </div>
             <div class="notice notice-error" v-show="!settings.defaultPayment">
-                <small>SmartAccounts payments default bank account name</small>
+                <small>Merit payments default bank account name</small>
             </div>
 
             <div v-if="!formFieldsValidated">
@@ -347,7 +347,7 @@ class MeritClass
             <h2>General settings</h2>
             <table class="form-table">
                 <tr valign="middle">
-                    <th>SmartAccounts public key</th>
+                    <th>Merit public key</th>
                     <td>
                         <input size="50"
                                data-vv-name="apiKey"
@@ -358,7 +358,7 @@ class MeritClass
                 </tr>
 
                 <tr valign="middle">
-                    <th>SmartAccounts private key</th>
+                    <th>Merit private key</th>
                     <td>
                         <input size="50"
                                data-vv-name="apiSecret"
@@ -369,7 +369,7 @@ class MeritClass
                 </tr>
 
                 <tr valign="middle">
-                    <th>SmartAccounts shipping article code</th>
+                    <th>Merit shipping article code</th>
                     <td>
                         <input size="50"
                                data-vv-name="defaultShipping"
@@ -378,7 +378,7 @@ class MeritClass
                     </td>
                 </tr>
                 <tr valign="middle">
-                    <th>SmartAccounts payments default bank account name</th>
+                    <th>Merit payments default bank account name</th>
                     <td>
                         <input size="50"
                                data-vv-name="defaultPayment"
@@ -405,7 +405,7 @@ class MeritClass
                     <td>
                         <button @click="importProducts" class="button-primary woocommerce-save-button"
                                 :disabled="syncInProgress">
-                            Sync products from SmartAccounts
+                            Sync products from Merit
                         </button>
                     </td>
                 </tr>
@@ -422,8 +422,8 @@ class MeritClass
             <div v-show="settings.showAdvanced">
                 <hr>
 
-                <h2>Order statuses to send to SmartAccounts as Offer (Pakkumine)</h2>
-                <small>These statuses are saved in SmartAccounts as Offer. Make sure API account has permission!</small>
+                <h2>Order statuses to send to Merit as Offer (Pakkumine)</h2>
+                <small>These statuses are saved in Merits as Offer. Make sure API account has permission!</small>
                 <br><br>
                 <select v-model="settings.offer_statuses" multiple>
                     <option value="pending">Pending</option>
@@ -432,7 +432,7 @@ class MeritClass
                     <option value="completed">Completed</option>
                 </select>
 
-                <h2>Order statuses to send to SmartAccounts as Invoice (Müügiarve)</h2>
+                <h2>Order statuses to send to Merit as Invoice (Müügiarve)</h2>
                 <small>If none selected then default Processing and Completed are used. Use CTRL+click to choose
                     multiple values
                 </small>
@@ -446,7 +446,7 @@ class MeritClass
 
                 <h2>Vat number meta field</h2>
                 <small>Order meta field that contains company VAT number if one exists. Default vat_number. If meta
-                    field does not exists then client VAT number will not be sent to the SmartAccounts
+                    field does not exists then client VAT number will not be sent to the Merit
                     (Optional)</small>
                 <br>
                 <input size="20" v-model="settings.vat_number_meta"/>
@@ -467,7 +467,7 @@ class MeritClass
                 </table>
 
                 <h2>Warehouse and import config</h2>
-                <small>What type of articles to sync from SmartAccounts and what warehouses to use
+                <small>What type of articles to sync from Merit and what warehouses to use
                 </small>
                 <table class="form-table">
                     <tr valign="top">
@@ -517,7 +517,7 @@ class MeritClass
                     <tr>
                         <th>Payment method</th>
                         <th>Currency code</th>
-                        <th>SmartAccounts bank account name</th>
+                        <th>Merit bank account name</th>
                         <th></th>
                     </tr>
                     </thead>
@@ -576,7 +576,7 @@ class MeritClass
 
 
         wp_localize_script("sa_app_js",
-            'sa_settings',
+            'merit_settings',
             [
                 'ajaxUrl'        => admin_url('admin-ajax.php'),
                 'settings'       => self::getSettings(),
@@ -587,8 +587,8 @@ class MeritClass
 
     public static function optionsPage()
     {
-        add_submenu_page('woocommerce', 'SmartAccounts settings', "SmartAccounts", 'manage_woocommerce',
-            'SmartAccounts', 'MeritClass::options_page_html');
+        add_submenu_page('woocommerce', 'Merit settings', "Merit", 'manage_woocommerce',
+            'Merit', 'MeritClass::options_page_html');
     }
 
     public static function getAvailablePaymentMethods()
@@ -607,23 +607,23 @@ class MeritClass
         return $enabled_gateways;
     }
 
-    //not very expensive to run every time when getting SA settings, better safe than sorry
+    //not very expensive to run every time when getting Merit settings, better safe than sorry
     public static function convertOldSettings()
     {
-        if (get_option('sa_api_pk')) {
+        if (get_option('merit_api_pk')) {
             $settings                  = new stdClass();
-            $settings->apiKey          = get_option('sa_api_pk');
-            $settings->apiSecret       = get_option('sa_api_sk');
-            $settings->defaultShipping = get_option('sa_api_shipping_code');
-            $settings->defaultPayment  = get_option('sa_api_payment_account');
-            update_option('sa_settings', json_encode($settings));
-            delete_option('sa_api_pk');
-            delete_option('sa_api_sk');
-            delete_option('sa_api_shipping_code');
-            delete_option('sa_api_payment_account');
+            $settings->apiKey          = get_option('merit_api_pk');
+            $settings->apiSecret       = get_option('merit_api_sk');
+            $settings->defaultShipping = get_option('merit_api_shipping_code');
+            $settings->defaultPayment  = get_option('merit_api_payment_account');
+            update_option('merit_settings', json_encode($settings));
+            delete_option('merit_api_pk');
+            delete_option('merit_api_sk');
+            delete_option('merit_api_shipping_code');
+            delete_option('merit_api_payment_account');
         }
 
-        $settings = json_decode(get_option('sa_settings')) ? json_decode(get_option('sa_settings')) : new stdClass();
+        $settings = json_decode(get_option('merit_settings')) ? json_decode(get_option('merit_settings')) : new stdClass();
 
         $gateways = WC()->payment_gateways->payment_gateways() ? WC()->payment_gateways->payment_gateways() : [];
 
@@ -650,7 +650,7 @@ class MeritClass
                 $settings->currencyBanks = $newCurrencyBanks;
             }
         }
-        update_option('sa_settings', json_encode($settings));
+        update_option('merit_settings', json_encode($settings));
     }
 
     public static function loadAsyncClass()
