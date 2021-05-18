@@ -12,7 +12,7 @@ class MeritPayment
 
     public function createPayment()
     {
-        $settings                = json_decode(get_option("sa_settings"));
+        $settings                = json_decode(get_option("merit_settings"));
         $orderPaymentMethod      = $this->order->get_payment_method();
         $orderPaymentMethodTitle = $this->order->get_payment_method_title();
 
