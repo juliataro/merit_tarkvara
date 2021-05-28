@@ -58,7 +58,6 @@ class MeritClient
     public function getClient(): ?string
     {
         $endpoint = "getcustomers";
-        $customerId = '';
 
         if ($this->order->meta_exists('_billing_regno')) {
             $regNo     = $this->order->get_meta('_billing_regno', true);
