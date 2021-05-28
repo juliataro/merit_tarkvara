@@ -55,14 +55,14 @@ class MeritClient
 
     /* @return Merit Customer ID
      */
-    public function getClient(): string
+    public function getClient(): ?string
     {
         $endpoint = "getcustomers";
+        $customerId = '';
 
         if ($this->order->meta_exists('_billing_regno')) {
-            $regCode     = $this->order->get_meta('_billing_regno', true);
-            $requestData = ['RegNo' => $regCode];
-            $this->regNo = $regCode;
+            $regNo     = $this->order->get_meta('_billing_regno', true);
+            $requestData = (object)['RegNo' => $regNo];
             $response    = $this->api->sendRequest($requestData, $endpoint);
         } else {
             // Remove all that are not company "main" part of name
@@ -74,27 +74,40 @@ class MeritClient
 
             // TODO Otsi Meritist kõik firmad selle nimega
             $response = $this->api->sendRequest($requestData, $endpoint);
+
         }
 
-        // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
-        if ($this->isAnonymous) {
-            return $this->getAnonymousClient($response, $this->country, $this->name);
-        } elseif ($this->regNo !== 0 || $this->name !== 0) {
-            return $this->getLoggedInClient($response, $this->country, $this->name, $this->email);
-        } else {
+
+        if(count($response) > 0) {
+            return $response[0]["CustomerId"];
+        } else{
             return $this->addNewMeritClient($this->email, $this->name, $this->country);
         }
-    }
+
+}
+        // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
+
+
+//        if ($this->isAnonymous) {
+//            return $this->getAnonymousClient($response, $this->country, $this->name);
+//        } elseif ($this->regNo !== 0 || $this->name !== 0) {
+//            return $this->getLoggedInClient($response, $this->country, $this->name, $this->email);
+//        } else {
+//            return $this->addNewMeritClient($this->email, $this->name, $this->country);
+//        }
+
 
     /**
-     * Returns SmartAccounts general client for this country. Creates new if it does not exist yet.
+     * Returns Merit general client for this country. Creates new if it does not exist yet.
      */
+
     private function getAnonymousClient($response, $country, $name)
     {
         foreach ($response as $client) {
+
             // Here $client is another entry form Merit $response
             if ($this->isGeneralCountryClient($response, $country)) {
-                return $client;
+                return $client[0]["CustomerId"];
             }
         }
 
@@ -173,11 +186,11 @@ class MeritClient
 
 
     /**
-     * Returns SmartAccounts client for the logged in user in the order. Creates new if it does not exist yet.
+     * Returns Merit client for the logged in user in the order. Creates new if it does not exist yet.
      */
     private function getLoggedInClient($clients, $country, $name, $email)
     {
-        if (!is_array($clients) || count($clients) == 0) {
+        if (count($clients) > 0) {
             return $this->addNewMeritClient($email, $name, $country);
         }
 
@@ -186,12 +199,12 @@ class MeritClient
             var_dump($client, $this->name, $client->name);
             // If name has exact match
             if (strtolower($client->Name) === strtolower($this->name)) {
-                return $client['CustomerId'];
+                return $client[0]["CustomerId"];
             }
 
             // "OÜ Firnamini" is same as "Firmanimi OÜ"
             if ($this->isCompany && (strtolower($this->getNormalizedName($this->name)) === strtolower($client->Name))) {
-                return $client['CustomerId'];
+                return $client[0]["CustomerId"];
             }
         }
 
@@ -212,10 +225,3 @@ class MeritClient
         return $name;
     }
 }
-
-
-
-
-
-
-

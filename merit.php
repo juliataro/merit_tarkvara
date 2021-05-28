@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: Merit_tarkvara
- * Plugin URI: https://github.com/smartman/woocommerce_smartaccounts
- * Description: This plugin creates sales invoices in the smartaccounts.ee Online Accounting Software after Woocommerce order creation
- * Version: 3.4
+ * Plugin URI: https://github.com/smartman/merit
+ * Description: This plugin creates sales invoices in the merit.ee Online Merit after Woocommerce order creation
+ * Version: 1.0
  * Author: Julia Taro
  * Author URI: https://marguspala.com
  * License: GPLv2 or later
@@ -18,11 +18,11 @@ if (!defined('ABSPATH')) {
 
 include_once(ABSPATH . 'wp-admin/includes/plugin.php');
 
-function smartaccounts_missing_wc_admin_notice()
+function merit_missing_wc_admin_notice()
 {
     ?>
     <div class="notice notice-error">
-        <p>SmartAccounts is WooCommerce plugin and requires WooCommerce plugin to be installed</p>
+        <p>Merit is WooCommerce plugin and requires WooCommerce plugin to be installed</p>
     </div>
     <?php
 }
@@ -35,7 +35,7 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
     add_action('admin_menu', 'MeritClass::optionsPage');
 
     //if no configured invoice nor offer sending statuses configured then use default
-    $settings      = json_decode(get_option('sa_settings'));
+    $settings      = json_decode(get_option('merit_settings'));
     $countStatuses = 0;
     if (isset($settings->statuses) && is_array($settings->statuses)) {
         foreach ($settings->statuses as $status) {
@@ -54,18 +54,18 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
         add_action('woocommerce_order_status_completed', 'MeritClass::orderStatusProcessing');
     }
 
-    add_action('sa_retry_failed_job', 'MeritClass::retryFailedOrders');
+    add_action('merit_retry_failed_job', 'MeritClass::retryFailedOrders');
 
-    add_action("wp_ajax_sa_save_settings", "MeritClass::saveSettings");
-    add_action("wp_ajax_sa_sync_products", "MeritArticleAsync::syncSaProducts");
-    add_action("wp_ajax_nopriv_sa_sync_products", "MeritArticleAsync::syncSaProducts");
+    add_action("wp_ajax_merit_save_settings", "MeritClass::saveSettings");
+    add_action("wp_ajax_merit_sync_products", "MeritArticleAsync::syncSaProducts");
+    add_action("wp_ajax_nopriv_merit_sync_products", "MeritArticleAsync::syncSaProducts");
     add_action('init', 'MeritClass::loadAsyncClass');
 } else {
-    add_action('admin_notices', 'smartaccounts_missing_wc_admin_notice');
+    add_action('admin_notices', 'merit_missing_wc_admin_notice');
 }
 
 function juliaTestib() {
-    $order=wc_get_order(26450);
+    $order=wc_get_order(148);
 
     $merit=new MeritClient($order);
     var_dump($merit->getClient());
@@ -74,5 +74,3 @@ function juliaTestib() {
 add_action("wp_ajax_julia_merit", 'juliaTestib');
 
 add_action("wp_ajax_nopriv_julia_merit", [MeritClient::class, 'getClient']);
-
-

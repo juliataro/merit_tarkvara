@@ -64,4 +64,3 @@ class MeritApi
         return $decodedResponse;
     }
 }
-
