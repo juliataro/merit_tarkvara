@@ -76,66 +76,19 @@ class MeritClient
 
         }
 
-
+        // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
         if(count($response) > 0) {
-            return $response[0]["CustomerId"];
+        return $response[0]["CustomerId"];
         } else{
             return $this->addNewMeritClient($this->email, $this->name, $this->country);
         }
 
 }
-        // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
-
-
-//        if ($this->isAnonymous) {
-//            return $this->getAnonymousClient($response, $this->country, $this->name);
-//        } elseif ($this->regNo !== 0 || $this->name !== 0) {
-//            return $this->getLoggedInClient($response, $this->country, $this->name, $this->email);
-//        } else {
-//            return $this->addNewMeritClient($this->email, $this->name, $this->country);
-//        }
-
-
-    /**
-     * Returns Merit general client for this country. Creates new if it does not exist yet.
-     */
-
-    private function getAnonymousClient($response, $country, $name)
-    {
-        foreach ($response as $client) {
-
-            // Here $client is another entry form Merit $response
-            if ($this->isGeneralCountryClient($response, $country)) {
-                return $client[0]["CustomerId"];
-            }
-        }
-
-        return $this->addNewMeritClient(null, $name, $country);
-    }
-
-    // TODO needs doublechecking
-    private function isGeneralCountryClient($response, $country)
-    {
-        if (!array_key_exists("address", $response)) {
-            if ($response['name'] == $this->generalUserName) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        foreach ($response["address"] as $key => $value) {
-            if ($key == "country" && $value == $country && $this->name == $response["name"]) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
+    // TODO Salvesta uut Merit Klienti äppi
     private function addNewMeritClient($email, $name, $country)
     {
         $endpoint = "sendcustomer";
+
         if ($country !== "EE") {
             $NotTDCustomer = true; // foreign company
         } elseif ($this->isCompany) {
@@ -184,32 +137,7 @@ class MeritClient
     }
 
 
-    /**
-     * Returns Merit client for the logged in user in the order. Creates new if it does not exist yet.
-     */
-    private function getLoggedInClient($clients, $country, $name, $email)
-    {
-        if (count($clients) > 0) {
-            return $this->addNewMeritClient($email, $name, $country);
-        }
 
-        foreach ($clients as $client) {
-            // TODO Make sure $this->name is correct here!
-            var_dump($client, $this->name, $client->name);
-            // If name has exact match
-            if (strtolower($client->Name) === strtolower($this->name)) {
-                return $client[0]["CustomerId"];
-            }
-
-            // "OÜ Firnamini" is same as "Firmanimi OÜ"
-            if ($this->isCompany && (strtolower($this->getNormalizedName($this->name)) === strtolower($client->Name))) {
-                return $client[0]["CustomerId"];
-            }
-        }
-
-
-        return $this->addNewMeritClient($email, $name, $country);
-    }
 
     /**
      * @return array|string|string[]|null
