@@ -16,38 +16,12 @@ class MeritSalesInvoice
         $this->api    = new MeritApi();
     }
 
-    public function saveOffer()
-    {
-        $apiUrl = "purchasesales/clientoffers:add";
-
-        $body              = new stdClass();
-        $body->clientId    = $this->client["id"];
-        $body->date        = $this->order->get_date_created()->date("d.m.Y");
-        $body->currency    = $this->order->get_currency();
-        $body->rows        = $this->getOrderRows();
-        $body->roundAmount = $this->getRoundingAmount($body->rows);
-        $body->amount      = $this->order->get_total();
-        $body->offerNote   = "WooCommerce order #" . $this->order->get_id() . ". " . $this->order->get_customer_note();
-
-        $settings = json_decode(get_option("merit_settings"));
-        if ($settings && $settings->objectId) {
-            $body->objectId = $settings->objectId;
-        }
-
-        $saArticle = new MeritArticle();
-        $saArticle->ensureAllArticlesExist($body->rows);
-
-        $offer = $this->api->sendRequest($body, $apiUrl);
-
-        return ["offer" => $offer, "rows" => $body->rows];
-    }
-
     public function saveInvoice()
     {
-        $apiUrl = "purchasesales/clientinvoices:add";
+        $endpoint = "sendinvoice";
 
         $body              = new stdClass();
-        $body->clientId    = $this->client["id"];
+        $body->clientId    = $this->client["Id"];
         $body->date        = $this->order->get_date_created()->date("d.m.Y");
         $body->currency    = $this->order->get_currency();
         $body->rows        = $this->getOrderRows();
@@ -55,24 +29,14 @@ class MeritSalesInvoice
         $body->amount      = $this->order->get_total();
         $body->invoiceNote = "WooCommerce order #" . $this->order->get_id() . ". " . $this->order->get_customer_note();
 
-        if ($this->order->meta_exists('merit_offer_id')) {
-            error_log("Found offer for invoice " . $this->order->get_meta('merit_offer_id'));
-            $body->offerId = $this->order->get_meta('merit_offer_id', true);
-        }
 
-        $settings = json_decode(get_option("merit_settings"));
-        if ($settings && $settings->objectId) {
-            $body->objectId = $settings->objectId;
-        }
 
-        if ($settings && $settings->warehouseId) {
-            $body->warehouseId = $settings->warehouseId;
-        }
+        $meritArticle = new MeritArticle();
+        $meritArticle->ensureAllArticlesExist($body->rows);
 
-        $saArticle = new MeritArticle();
-        $saArticle->ensureAllArticlesExist($body->rows);
+        $body = apply_filters('merit_save_invoice', $body, $this->order);
 
-        $salesInvoice = $this->api->sendRequest($body, $apiUrl);
+        $salesInvoice = $this->api->sendRequest($body, $endpoint);
 
         return ["invoice" => $salesInvoice, "rows" => $body->rows];
     }
@@ -111,7 +75,7 @@ class MeritSalesInvoice
             $product = $item->get_product();
             $row     = new stdClass();
             if ($product == null) {
-                error_log("Merit Product not found for order item " . $item->get_id());
+                error_log("SA Product not found for order item " . $item->get_id());
                 $row->description = $item->get_name();
                 $code             = "wc_missing_product_" . $item->get_id();
             } else {
@@ -144,7 +108,7 @@ class MeritSalesInvoice
             $row->totalCents = intval(round(floatval($row->price) * $row->quantity * 100));
             $row->taxCents   = intval(round($row->totalCents * $vatPc / 100));
 
-            $settings = json_decode(get_option("merit_settings"));
+            $settings = json_decode(get_option("sa_settings"));
             if ($settings && $settings->objectId) {
                 $row->objectId = $settings->objectId;
             }
@@ -153,7 +117,7 @@ class MeritSalesInvoice
         }
 
         if ($this->order->get_shipping_total() > 0) {
-            $settings         = json_decode(get_option("merit_settings"));
+            $settings         = json_decode(get_option("sa_settings"));
             $row              = new stdClass();
             $row->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
             $row->description = "Woocommerce Shipping";
@@ -163,7 +127,7 @@ class MeritSalesInvoice
             $row->totalCents  = intval(round(floatval($row->price) * $row->quantity * 100));
             $row->taxCents    = intval(round($row->totalCents * $vatPc / 100));
 
-            $settings = json_decode(get_option("merit_settings"));
+            $settings = json_decode(get_option("sa_settings"));
             if ($settings && $settings->objectId) {
                 $row->objectId = $settings->objectId;
             }
