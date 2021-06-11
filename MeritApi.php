@@ -25,12 +25,15 @@ class MeritApi
         $now = new DateTime();
         $now->setTimezone(new DateTimeZone('Europe/Tallinn'));
         $settings = json_decode(get_option("merit_settings"));
-        $pk       = $settings->apiKey;
-        $sk       = $settings->apiSecret;
 
         // TODO use configuration
         $APIID     = "eb854b11-db9c-495f-a108-ce5fbcb59ccb";
         $APIKEY    = "883GM0TSFxJqg/OANR5fgKi5U3FIHeEgICt4M7ZsAds=";
+
+        $pk       = $settings->apiKey;
+        $sk       = $settings->apiSecret;
+
+
         $TIMESTAMP = date("YmdHis");
 
         $json      = json_encode($body);

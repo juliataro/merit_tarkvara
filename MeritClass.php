@@ -12,59 +12,7 @@ include_once('MeritArticle.php');
 
 class MeritClass
 {
-    public static function orderOfferStatusProcessing($order_id)
-    {
-        error_log("Order $order_id changed status. Checking if sending OFFER to Merit");
-        //try catch makes sure your store will operate even if there are errors
-        try {
-            $order = wc_get_order($order_id);
-            if (strlen(get_post_meta($order_id, 'merit_invoice_id', true)) > 0
-                || strlen(get_post_meta($order_id, 'merit_offer_id', true)) > 0) {
-                error_log("Merit order $order_id already sent as offer or invoice, not sending OFFER again, SA id="
-                    . get_post_meta($order_id, 'merit_invoice_id', true) . " offer_id="
-                    . get_post_meta($order_id, 'merit_offer_id', true));
 
-                return; //Merit offer is already created
-            }
-
-            $saClient       = new MeritClient($order);
-            $client         = $saClient->getClient();
-            $saSalesInvoice = new MeritSalesInvoice($order, $client);
-
-            $offer = $saSalesInvoice->saveOffer();
-
-            update_post_meta($order_id, 'merit_offer_id', $offer['offer']['offerId']);
-            update_post_meta($order_id, 'merit_offer_number', $offer['offer']['offerNumber']);
-            error_log("Offer data: " . json_encode($offer));
-            error_log("Merit sales offer created for order $order_id=" . $offer['offer']['offerId']);
-            $order->add_order_note("Offer sent to Merit: " . $offer['offer']['offerNumber']);
-
-            $offerIdsString = get_option('merit_failed_offers');
-            $offerIds       = json_decode($offerIdsString);
-            if (is_array($offerIds) && array_key_exists($order_id, $offerIds)) {
-                unset($offerIds[$order_id]);
-                update_option('merit_failed_offers', json_encode($offerIds));
-                error_log("Removed $order_id from failed offers array");
-            }
-        } catch (Exception $exception) {
-            error_log("Merit error: " . $exception->getMessage() . " " . $exception->getTraceAsString());
-
-            $offerIdsString = get_option('merit_failed_offers');
-            $offerIds       = json_decode($offerIdsString);
-            if (is_array($offerIds)) {
-                error_log("Adding $order_id to failed offers array $offerIdsString to be retried later");
-                $offerIds[$order_id] = $order_id;
-                update_option('merit_failed_offers', json_encode($offerIds));
-            } else {
-                error_log("Adding $order_id to new failed offers array. previously $offerIdsString");
-                $offerIds = [$order_id => $order_id];
-                update_option('merit_failed_offers', json_encode($offerIds));
-            }
-
-            wp_schedule_single_event(time() + 129600, 'merit_retry_failed_job');
-            $order->add_order_note("Offer sending to Merit failed: " . $exception->getMessage());
-        }
-    }
 
     public static function orderStatusProcessing($order_id)
     {
@@ -90,7 +38,7 @@ class MeritClass
             error_log("Merits sales invoice created for order $order_id - " . $invoice['invoice']['invoiceNumber']);
             $order->add_order_note("Invoice sent to Merit: " . $invoice['invoice']['invoiceNumber']);
 
-            $invoiceIdsString = get_option('sa_failed_orders');
+            $invoiceIdsString = get_option('merit_failed_orders');
             $invoiceIds       = json_decode($invoiceIdsString);
             if (is_array($invoiceIds) && array_key_exists($order_id, $invoiceIds)) {
                 unset($invoiceIds[$order_id]);

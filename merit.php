@@ -65,7 +65,7 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
 }
 
 //function juliaTestib() {
-//    $order=wc_get_order(177);
+//    $order=wc_get_order(196);
 //
 //    $merit=new MeritClient($order);
 //   var_dump($merit->getClient());
@@ -76,13 +76,13 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
 //// http://localhost/wordpress/wp-admin/admin-ajax.php?action=julia_merit
 //
 //add_action("wp_ajax_nopriv_julia_merit", [MeritClient::class, 'getClient']);
-
-
+//
+//
 
 function invTestib() {
-    $order = wc_get_order(177);
+    $order = wc_get_order(196);
     $client = $order->get_customer_id();
-    return $client;
+
 
     $merit = new MeritSalesInvoice($order, $client);
   $merit->saveInvoice();

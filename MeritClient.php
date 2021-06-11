@@ -14,7 +14,6 @@ class MeritClient
     protected $name;
     protected $country;
     protected $isCompany;
-    protected $regNo;
 
     /** @var MeritApi */
     protected $api;
