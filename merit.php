@@ -85,7 +85,7 @@ function invTestib() {
 
 
     $merit = new MeritSalesInvoice($order, $client);
-  $merit->saveInvoice();
+    $merit->saveInvoice();
 }
 add_action("wp_ajax_julia_merit", 'invTestib');
 add_action("wp_ajax_nopriv_julia_merit", [MeritSalesInvoice::class, 'saveInvoice']);

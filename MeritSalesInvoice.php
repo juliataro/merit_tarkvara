@@ -29,6 +29,9 @@ class MeritSalesInvoice
         $body->rows        = $this->addNewMeritClient($email, $name, $country);
         $body->inoviceNo   = $this->order->get_id();
         $body->rows        = $this->invoiceRow();
+        $body->rows        = $this->getTotalTax();
+        $body->rows        = $this->getOrderTotal();
+
 
         $salesInvoice = $this->api->sendRequest($body, $endpoint);
         return ["invoice" => $salesInvoice, "rows" => $body->rows];
@@ -37,35 +40,17 @@ class MeritSalesInvoice
 
     public function invoiceRow()
     {
-        $rows     = [];
-        $totalTax = $this->getTotalTax();
-        $subTotal = $this->getOrderTotal();
-        $vatPc    = round($totalTax * 100 / $subTotal);
+    //    wp_send_json("ok");
+
+        $rows = [];
+        $itemObject = $this->itemObject();
+
         foreach ($this->order->get_items() as $item) {
-            $product = $item->get_product();
-                $row     = new stdClass();
-                   $itemObject     = new stdClass();
 
-                  $itemObject ->code     = $code;
-                  $itemObject->description = $item->get_name();
-                     $code = $product->get_sku();
-                      if ($code == null || strlen($code) == 0) {
-                        $code = $product->get_id();
-            }
-                  $itemObject->description = strlen($product->get_name()) == 0 ? $product->get_description() : $product->get_name();
-            }
-
-            if (strlen($itemObject->description) == 0) {
-                $itemObject->description = $code;
-            }
-            // Remove unsupported UTF-8 multibyte characters.
-            $itemObject->description = preg_replace('/[\xF0-\xF7].../s', '_', $itemObject->description);
-
-
+            $row = new stdClass();
             $row->quantity = $item->get_quantity();
             $rowPrice = $item->get_total() / $item->get_quantity();
-            $row->price      = number_format($rowPrice, 2, ".", "");
-            $row->vatPc      = $vatPc;
+            $row->price = number_format($rowPrice, 2, ".", "");
 
             $settings = json_decode(get_option("merit_settings"));
             if ($settings && $settings->objectId) {
@@ -73,20 +58,89 @@ class MeritSalesInvoice
             }
 
             $rows[] = $row;
-         return $rows;
+            var_dump($rows);;
 
+
+        }
+        if ($this->order->get_shipping_total() > 0) {
+            $settings         = json_decode(get_option("merit_settings"));
+            $itemObject              = new stdClass();
+            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
+            $itemObject->description = "Woocommerce Shipping";
+
+            $settings = json_decode(get_option("merit_settings"));
+            if ($settings && $settings->objectId) {
+                $itemObject->objectId = $settings->objectId;
+            }
+            $rows[] = $itemObject;
+    }
+        return $rows;
+    }
+
+
+
+    public function itemObject(){
+        foreach ($this->order->get_items() as $item) {
+            $product = $item->get_product();
+
+            $itemObject     = new stdClass();
+            if ($product == null) {
+                error_log("Merit Product not found for order item " . $item->get_id());
+                $itemObject->description = $item->get_name();
+                $code             = "wc_missing_product_" . $item->get_id();
+            } else {
+                $code = $product->get_sku();
+                if ($code == null || strlen($code) == 0) {
+                    $code = "wc_product_" . $product->get_id();
+                }
+
+                //in case
+                $itemObject->description = strlen($product->get_name()) == 0 ? $product->get_description() : $product->get_name();
+            }
+
+            if (strlen($itemObject->description) == 0) {
+                $itemObject->description = $code;
+            }
+            // Remove unsupported UTF-8 multibyte characters.
+            $itemObject->code     = $code;
+            $itemObject->description = preg_replace('/[\xF0-\xF7].../s', '_', $itemObject->description);
+
+            $settings = json_decode(get_option("sa_settings"));
+            if ($settings && $settings->objectId) {
+                $itemObject->objectId = $settings->objectId;
+
+          }
+            $rows[] = $itemObject;
+    }
+        if ($this->order->get_shipping_total() > 0) {
+            $settings         = json_decode(get_option("merit_settings"));
+            $itemObject              = new stdClass();
+            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
+            $itemObject->description = "Woocommerce Shipping";
+
+            $settings = json_decode(get_option("merit_settings"));
+            if ($settings && $settings->objectId) {
+                $itemObject->objectId = $settings->objectId;
+            }
+            $rows[] = $itemObject;
+        }
+            return $rows;
 
     }
 
+
+    //TODO  get total tax from order
     public function getTotalTax()
     {
         return floatval($this->order->get_total_tax());
     }
 
+    //TODO  get total from order
     public function getOrderTotal()
     {
         return $this->order->get_subtotal() + (float)$this->order->get_shipping_total() - $this->order->get_discount_total();
     }
+
 
 
     // TODO Add Client Data
