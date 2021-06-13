@@ -12,8 +12,6 @@ include_once('MeritArticle.php');
 
 class MeritClass
 {
-
-
     public static function orderStatusProcessing($order_id)
     {
         error_log("Order $order_id changed status. Checking if sending to Merit");
@@ -28,10 +26,10 @@ class MeritClass
             }
 
             $meritClient       = new MeritClient($order);
-            $client         = $meritClient->getClient();
-            $meritSalesInvoice = new MeritSalesInvoice($order, $client);
+            $clientId          = $meritClient->getClient();
+            $meritSalesInvoice = new MeritSalesInvoice($order, $clientId);
 
-            $invoice   = $meritSalesInvoice->saveInvoice();
+            $invoice      = $meritSalesInvoice->saveInvoice();
             $meritPayment = new MeritPayment($order, $invoice);
             $meritPayment->createPayment();
             update_post_meta($order_id, 'merit_invoice_id', $invoice['invoice']['invoiceNumber']);
@@ -337,18 +335,6 @@ class MeritClass
                 </tr>
 
                 <tr valign="middle">
-                    <th>Invoice object (optional)</th>
-                    <td>
-                        <input size="50"
-                               data-vv-name="objectId"
-                               v-validate="{regex: /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/}"
-                               v-bind:class="{'notice notice-error':errors.first('objectId')}"
-                               v-model="settings.objectId"
-                               placeholder="00000000-0000-0000-0000-000000000000"/>
-                    </td>
-                </tr>
-
-                <tr valign="middle">
                     <th></th>
                     <td>
                         <button @click="importProducts" class="button-primary woocommerce-save-button"
@@ -440,7 +426,8 @@ class MeritClass
                         <th>Warehouse filter (Overrides others)</th>
                         <td>
                             <input type="text" v-model="settings.inventoryFilter"><br>
-                            <small>Comma separate list of Inventory account (Laokonto) to use when synching product stock quantities from eg 10710,10741. If not empty then overrides filters above.</small>
+                            <small>Comma separate list of Inventory account (Laokonto) to use when synching product stock quantities from eg 10710,10741. If not empty then overrides filters
+                                above.</small>
                         </td>
                     </tr>
                     <tr valign="top">
@@ -510,20 +497,20 @@ class MeritClass
 
     public static function enqueueScripts()
     {
-        wp_register_script('sa_vue_js', plugins_url('js/sa-vue.js', __FILE__));
-        wp_register_script('sa_axios_js', plugins_url('js/sa-axios.min.js', __FILE__));
-        wp_register_script('sa_app_js', plugins_url('js/sa-app.js', __FILE__));
-        wp_register_script('sa_vee_validate', plugins_url('js/sa-vee-validate.js', __FILE__));
-        wp_register_script('sa_mini_toastr', plugins_url('js/sa-mini-toastr.js', __FILE__));
+        wp_register_script('merit_vue_js', plugins_url('js/merit-vue.js', __FILE__));
+        wp_register_script('merit_axios_js', plugins_url('js/merit-axios.min.js', __FILE__));
+        wp_register_script('merit_app_js', plugins_url('js/merit-app.js', __FILE__));
+        wp_register_script('merit_vee_validate', plugins_url('js/merit-vee-validate.js', __FILE__));
+        wp_register_script('merit_mini_toastr', plugins_url('js/merit-mini-toastr.js', __FILE__));
 
-        wp_enqueue_script('sa_mini_toastr');
-        wp_enqueue_script('sa_vue_js');
-        wp_enqueue_script('sa_axios_js');
-        wp_enqueue_script('sa_vee_validate', false, ['sa_vue_js'], null, true);
-        wp_enqueue_script('sa_app_js', false, ['sa_vue_js', 'sa_axios_js', 'sa_mini_toastr'], null, true);
+        wp_enqueue_script('merit_mini_toastr');
+        wp_enqueue_script('merit_vue_js');
+        wp_enqueue_script('merit_axios_js');
+        wp_enqueue_script('merit_vee_validate', false, ['merit_vue_js'], null, true);
+        wp_enqueue_script('merit_app_js', false, ['merit_vue_js', 'merit_axios_js', 'merit_mini_toastr'], null, true);
 
 
-        wp_localize_script("sa_app_js",
+        wp_localize_script("merit_app_js",
             'merit_settings',
             [
                 'ajaxUrl'        => admin_url('admin-ajax.php'),

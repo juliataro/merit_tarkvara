@@ -1,7 +1,7 @@
-if (document.getElementById("sa-admin")) {
+if (document.getElementById("merit-admin")) {
     Vue.use(VeeValidate);
     var vm = new Vue({
-        el: '#sa-admin',
+        el: '#merit-admin',
         created() {
             this.newCountryObject();
             this.newCurrency();
@@ -26,8 +26,8 @@ if (document.getElementById("sa-admin")) {
         },
         data() {
             return {
-                settings: sa_settings.settings,
-                paymentMethods: sa_settings.paymentMethods,
+                settings: merit_settings.settings,
+                paymentMethods: merit_settings.paymentMethods,
                 syncInProgress: false
             };
         },
@@ -45,7 +45,7 @@ if (document.getElementById("sa-admin")) {
                 this.settings.currencyBanks.splice(id, 1);
             },
             saveSettings() {
-                axios.post(sa_settings.ajaxUrl + "?action=sa_save_settings", this.settings).then(
+                axios.post(merit_settings.ajaxUrl + "?action=merit_save_settings", this.settings).then(
                     res => {
                         console.log('Settings saved', res.data.settings);
 
@@ -58,7 +58,7 @@ if (document.getElementById("sa-admin")) {
                 this.syncInProgress = true;
                 console.log('Sync started');
                 miniToastr.success('Sync started');
-                axios.get(sa_settings.ajaxUrl + "?action=sa_sync_products").then(
+                axios.get(merit_settings.ajaxUrl + "?action=merit_sync_products").then(
                     res => {
                         console.log('Sync running in background');
                         miniToastr.success('Sync running in background');

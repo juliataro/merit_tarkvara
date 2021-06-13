@@ -31,7 +31,7 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
     require_once('MeritClass.php');
     require_once('MeritArticleAsync.php');
 
-    add_action('admin_enqueue_scripts', 'MeritClass::enqueueScripts');
+    add_action('admin_enqueue_scripts', [MeritClass::class, 'enqueueScripts']);
     add_action('admin_menu', 'MeritClass::optionsPage');
 
     //if no configured invoice nor offer sending statuses configured then use default
@@ -80,12 +80,7 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
 //
 
 function invTestib() {
-    $order = wc_get_order(196);
-    $client = $order->get_customer_id();
-
-
-    $merit = new MeritSalesInvoice($order, $client);
-    $merit->saveInvoice();
+    MeritClass::orderStatusProcessing(26450);
 }
 add_action("wp_ajax_julia_merit", 'invTestib');
 add_action("wp_ajax_nopriv_julia_merit", [MeritSalesInvoice::class, 'saveInvoice']);

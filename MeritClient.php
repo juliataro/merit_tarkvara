@@ -54,12 +54,12 @@ class MeritClient
 
     /* @return Merit Customer ID
      */
-    public function getClient(): ?string
+    public function getClient(): string
     {
         $endpoint = "getcustomers";
 
         if ($this->order->meta_exists('_billing_regno')) {
-            $regNo     = $this->order->get_meta('_billing_regno', true);
+            $regNo       = $this->order->get_meta('_billing_regno', true);
             $requestData = (object)['RegNo' => $regNo];
             $response    = $this->api->sendRequest($requestData, $endpoint);
         } else {
@@ -72,17 +72,15 @@ class MeritClient
 
             // TODO Otsi Meritist kõik firmad selle nimega
             $response = $this->api->sendRequest($requestData, $endpoint);
-
         }
-
         // TODO Võta $response välja esimene vaste ja kui ühtegi firmat ei leia, siis tee uus firma
-        if(count($response) > 0) {
-        return $response[0]["CustomerId"];
-        } else{
+        if (count($response) > 0) {
+            return $response[0]["CustomerId"];
+        } else {
             return $this->addNewMeritClient($this->email, $this->name, $this->country);
         }
+    }
 
-}
     // TODO Salvesta uut Merit Klienti äppi
     private function addNewMeritClient($email, $name, $country)
     {
@@ -134,8 +132,6 @@ class MeritClient
         $createResponse = $this->api->sendRequest($requestData, $endpoint);
         return $createResponse["Id"];
     }
-
-
 
 
     /**

@@ -19,6 +19,8 @@ class MeritApi
 
     public function sendRequest(?stdClass $body, $endpoint): array
     {
+        error_log("Sending Merit API $endpoint: ".json_encode($body));
+
         if ($body == null) {
             $body = new stdClass();
         }
@@ -26,25 +28,20 @@ class MeritApi
         $now->setTimezone(new DateTimeZone('Europe/Tallinn'));
         $settings = json_decode(get_option("merit_settings"));
 
-        // TODO use configuration
-        $APIID     = "eb854b11-db9c-495f-a108-ce5fbcb59ccb";
-        $APIKEY    = "883GM0TSFxJqg/OANR5fgKi5U3FIHeEgICt4M7ZsAds=";
-
         $pk       = $settings->apiKey;
         $sk       = $settings->apiSecret;
 
-
-        $TIMESTAMP = date("YmdHis");
+        $timestamp = date("YmdHis");
 
         $json      = json_encode($body);
-        $signature = $this->signURL($APIID, $APIKEY, $TIMESTAMP, $json);
+        $signature = $this->signURL($pk, $sk, $timestamp, $json);
 
         $version = "v1";
         if ($endpoint === "sendcustomer") {
             $version = "v2";
         }
 
-        $url = "https://aktiva.merit.ee/api/$version/" . $endpoint . "?ApiId=" . $APIID . "&timestamp=" . $TIMESTAMP . "&signature=" . $signature;
+        $url = "https://aktiva.merit.ee/api/$version/" . $endpoint . "?ApiId=" . $pk . "&timestamp=" . $timestamp . "&signature=" . $signature;
 
         $args = [
             'body'    => $json,
