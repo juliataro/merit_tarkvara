@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Merit_tarkvara
- * Plugin URI: https://github.com/smartman/merit
+ * Plugin URI: https://github.com/smartman
  * Description: This plugin creates sales invoices in the merit.ee Online Merit after Woocommerce order creation
  * Version: 1.0
  * Author: Julia Taro
@@ -9,7 +9,7 @@
  * License: GPLv2 or later
  * License URI:  https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 4.8.0
- * Tested up to: 5.6
+ * Tested up to: 1.0
  */
 
 if (!defined('ABSPATH')) {
@@ -57,20 +57,36 @@ if (is_plugin_active('woocommerce/woocommerce.php')) {
     add_action('merit_retry_failed_job', 'MeritClass::retryFailedOrders');
 
     add_action("wp_ajax_merit_save_settings", "MeritClass::saveSettings");
-    add_action("wp_ajax_merit_sync_products", "MeritArticleAsync::syncSaProducts");
-    add_action("wp_ajax_nopriv_merit_sync_products", "MeritArticleAsync::syncSaProducts");
+    add_action("wp_ajax_merit_sync_products", "MeritArticleAsync::syncMeritProducts");
+    add_action("wp_ajax_nopriv_merit_sync_products", "MeritArticleAsync::syncMeritProducts");
     add_action('init', 'MeritClass::loadAsyncClass');
 } else {
     add_action('admin_notices', 'merit_missing_wc_admin_notice');
 }
 
-function juliaTestib() {
-    $order=wc_get_order(148);
+//function juliaTestib() {
+//    $order=wc_get_order(196);
+//
+//    $merit=new MeritClient($order);
+//   var_dump($merit->getClient());
+//}
+//
+//add_action("wp_ajax_julia_merit", 'juliaTestib');
+////address millega väljastatakse tulemus
+//// http://localhost/wordpress/wp-admin/admin-ajax.php?action=julia_merit
+//
+//add_action("wp_ajax_nopriv_julia_merit", [MeritClient::class, 'getClient']);
+//
+//
 
-    $merit=new MeritClient($order);
-    var_dump($merit->getClient());
+function invTestib() {
+    $order = wc_get_order(196);
+    $client = $order->get_customer_id();
+
+
+    $merit = new MeritSalesInvoice($order, $client);
+    $merit->saveInvoice();
 }
+add_action("wp_ajax_julia_merit", 'invTestib');
+add_action("wp_ajax_nopriv_julia_merit", [MeritSalesInvoice::class, 'saveInvoice']);
 
-add_action("wp_ajax_julia_merit", 'juliaTestib');
-
-add_action("wp_ajax_nopriv_julia_merit", [MeritClient::class, 'getClient']);

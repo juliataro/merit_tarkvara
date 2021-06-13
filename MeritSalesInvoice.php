@@ -13,106 +13,80 @@ class MeritSalesInvoice
     {
         $this->client = $client;
         $this->order  = $order;
+
         $this->api    = new MeritApi();
-    }
-
-    public function saveOffer()
-    {
-        $apiUrl = "purchasesales/clientoffers:add";
-
-        $body              = new stdClass();
-        $body->clientId    = $this->client["id"];
-        $body->date        = $this->order->get_date_created()->date("d.m.Y");
-        $body->currency    = $this->order->get_currency();
-        $body->rows        = $this->getOrderRows();
-        $body->roundAmount = $this->getRoundingAmount($body->rows);
-        $body->amount      = $this->order->get_total();
-        $body->offerNote   = "WooCommerce order #" . $this->order->get_id() . ". " . $this->order->get_customer_note();
-
-        $settings = json_decode(get_option("merit_settings"));
-        if ($settings && $settings->objectId) {
-            $body->objectId = $settings->objectId;
-        }
-
-        $saArticle = new MeritArticle();
-        $saArticle->ensureAllArticlesExist($body->rows);
-
-        $offer = $this->api->sendRequest($body, $apiUrl);
-
-        return ["offer" => $offer, "rows" => $body->rows];
     }
 
     public function saveInvoice()
     {
-        $apiUrl = "purchasesales/clientinvoices:add";
+        $endpoint = "sendinvoice";
+
+        $email = "";
+        $name = "";
+        $country = "";
 
         $body              = new stdClass();
-        $body->clientId    = $this->client["id"];
-        $body->date        = $this->order->get_date_created()->date("d.m.Y");
-        $body->currency    = $this->order->get_currency();
-        $body->rows        = $this->getOrderRows();
-        $body->roundAmount = $this->getRoundingAmount($body->rows);
-        $body->amount      = $this->order->get_total();
-        $body->invoiceNote = "WooCommerce order #" . $this->order->get_id() . ". " . $this->order->get_customer_note();
+        $body->rows        = $this->addNewMeritClient($email, $name, $country);
+        $body->inoviceNo   = $this->order->get_id();
+        $body->rows        = $this->invoiceRow();
+        $body->rows        = $this->getTotalTax();
+        $body->rows        = $this->getOrderTotal();
 
-        if ($this->order->meta_exists('merit_offer_id')) {
-            error_log("Found offer for invoice " . $this->order->get_meta('merit_offer_id'));
-            $body->offerId = $this->order->get_meta('merit_offer_id', true);
-        }
 
-        $settings = json_decode(get_option("merit_settings"));
-        if ($settings && $settings->objectId) {
-            $body->objectId = $settings->objectId;
-        }
-
-        if ($settings && $settings->warehouseId) {
-            $body->warehouseId = $settings->warehouseId;
-        }
-
-        $saArticle = new MeritArticle();
-        $saArticle->ensureAllArticlesExist($body->rows);
-
-        $salesInvoice = $this->api->sendRequest($body, $apiUrl);
-
+        $salesInvoice = $this->api->sendRequest($body, $endpoint);
         return ["invoice" => $salesInvoice, "rows" => $body->rows];
     }
 
-    public function getRoundingAmount($rows)
+
+    public function invoiceRow()
     {
-        $rowsTotal = 0;
-        foreach ($rows as $row) {
-            $rowsTotal += $row->totalCents;
-            $rowsTotal += $row->taxCents;
+    //    wp_send_json("ok");
+
+        $rows = [];
+        $itemObject = $this->itemObject();
+
+        foreach ($this->order->get_items() as $item) {
+
+            $row = new stdClass();
+            $row->quantity = $item->get_quantity();
+            $rowPrice = $item->get_total() / $item->get_quantity();
+            $row->price = number_format($rowPrice, 2, ".", "");
+
+            $settings = json_decode(get_option("merit_settings"));
+            if ($settings && $settings->objectId) {
+                $itemObject->objectId = $settings->objectId;
+            }
+
+            $rows[] = $row;
+            var_dump($rows);;
+
+
         }
+        if ($this->order->get_shipping_total() > 0) {
+            $settings         = json_decode(get_option("merit_settings"));
+            $itemObject              = new stdClass();
+            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
+            $itemObject->description = "Woocommerce Shipping";
 
-        $roundingAmount = number_format(($this->getOrderTotal() * 100 + $this->getTotalTax() * 100 - $rowsTotal) / 100,
-            2);
-
-        return $roundingAmount;
+            $settings = json_decode(get_option("merit_settings"));
+            if ($settings && $settings->objectId) {
+                $itemObject->objectId = $settings->objectId;
+            }
+            $rows[] = $itemObject;
+    }
+        return $rows;
     }
 
-    public function getTotalTax()
-    {
-        return floatval($this->order->get_total_tax());
-    }
 
-    public function getOrderTotal()
-    {
-        return $this->order->get_subtotal() + (float)$this->order->get_shipping_total() - $this->order->get_discount_total();
-    }
 
-    private function getOrderRows()
-    {
-        $rows     = [];
-        $totalTax = $this->getTotalTax();
-        $subTotal = $this->getOrderTotal();
-        $vatPc    = round($totalTax * 100 / $subTotal);
+    public function itemObject(){
         foreach ($this->order->get_items() as $item) {
             $product = $item->get_product();
-            $row     = new stdClass();
+
+            $itemObject     = new stdClass();
             if ($product == null) {
                 error_log("Merit Product not found for order item " . $item->get_id());
-                $row->description = $item->get_name();
+                $itemObject->description = $item->get_name();
                 $code             = "wc_missing_product_" . $item->get_id();
             } else {
                 $code = $product->get_sku();
@@ -121,56 +95,104 @@ class MeritSalesInvoice
                 }
 
                 //in case
-                $codeSplit = explode(",", $code);
-                if (count($codeSplit) > 1) {
-                    $code = $vatPc == 0 ? $codeSplit[0] : $codeSplit[1];
-                }
-                $row->description = strlen($product->get_name()) == 0 ? $product->get_description() : $product->get_name();
+                $itemObject->description = strlen($product->get_name()) == 0 ? $product->get_description() : $product->get_name();
             }
 
-            if (strlen($row->description) == 0) {
-                $row->description = $code;
+            if (strlen($itemObject->description) == 0) {
+                $itemObject->description = $code;
             }
             // Remove unsupported UTF-8 multibyte characters.
-            $row->description = preg_replace('/[\xF0-\xF7].../s', '_', $row->description);
+            $itemObject->code     = $code;
+            $itemObject->description = preg_replace('/[\xF0-\xF7].../s', '_', $itemObject->description);
 
-            $row->code     = $code;
-            $row->quantity = $item->get_quantity();
-
-            $rowPrice = $item->get_total() / $item->get_quantity();
-
-            $row->price      = number_format($rowPrice, 2, ".", "");
-            $row->vatPc      = $vatPc;
-            $row->totalCents = intval(round(floatval($row->price) * $row->quantity * 100));
-            $row->taxCents   = intval(round($row->totalCents * $vatPc / 100));
-
-            $settings = json_decode(get_option("merit_settings"));
+            $settings = json_decode(get_option("sa_settings"));
             if ($settings && $settings->objectId) {
-                $row->objectId = $settings->objectId;
-            }
+                $itemObject->objectId = $settings->objectId;
 
-            $rows[] = $row;
-        }
-
+          }
+            $rows[] = $itemObject;
+    }
         if ($this->order->get_shipping_total() > 0) {
             $settings         = json_decode(get_option("merit_settings"));
-            $row              = new stdClass();
-            $row->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
-            $row->description = "Woocommerce Shipping";
-            $row->price       = $this->order->get_shipping_total();
-            $row->quantity    = 1;
-            $row->vatPc       = $vatPc;
-            $row->totalCents  = intval(round(floatval($row->price) * $row->quantity * 100));
-            $row->taxCents    = intval(round($row->totalCents * $vatPc / 100));
+            $itemObject              = new stdClass();
+            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
+            $itemObject->description = "Woocommerce Shipping";
 
             $settings = json_decode(get_option("merit_settings"));
             if ($settings && $settings->objectId) {
-                $row->objectId = $settings->objectId;
+                $itemObject->objectId = $settings->objectId;
             }
-            $rows[] = $row;
+            $rows[] = $itemObject;
+        }
+            return $rows;
+
+    }
+
+
+    //TODO  get total tax from order
+    public function getTotalTax()
+    {
+        return floatval($this->order->get_total_tax());
+    }
+
+    //TODO  get total from order
+    public function getOrderTotal()
+    {
+        return $this->order->get_subtotal() + (float)$this->order->get_shipping_total() - $this->order->get_discount_total();
+    }
+
+
+
+    // TODO Add Client Data
+    private function addNewMeritClient($email, $name, $country)
+    {
+        $endpoint = "sendcustomer";
+
+        if ($country !== "EE") {
+            $NotTDCustomer = true; // foreign company
+        } elseif ($this->isCompany) {
+            $NotTDCustomer = false; // Eesti firma
+        } else {
+            $NotTDCustomer = true; //Eestist ja ei ole firma
         }
 
-        return $rows;
+        //maybe has PHP 5 and ?? operator is missing
+        $city       = $this->order->get_billing_city() ? $this->order->get_billing_city() :
+            ($this->order->get_shipping_city() ? $this->order->get_shipping_city() : "");
+        $state      = $this->order->get_billing_state() ? $this->order->get_billing_state() :
+            ($this->order->get_shipping_state() ? $this->order->get_shipping_state() : "");
+        $postalCode = $this->order->get_billing_postcode() ? $this->order->get_billing_postcode() :
+            ($this->order->get_shipping_postcode() ? $this->order->get_shipping_postcode() : "");
+        $address1   = substr($this->order->get_billing_address_1() ? $this->order->get_billing_address_1() :
+            ($this->order->get_shipping_address_1() ? $this->order->get_shipping_address_1() : ""), 0, 64);
+        $address2   = substr($this->order->get_billing_address_2() ? $this->order->get_billing_address_2() :
+            ($this->order->get_shipping_address_2() ? $this->order->get_shipping_address_2() : ""), 0, 64);
+
+        $requestData                = new stdClass();
+        $requestData->Name          = $name;
+        $requestData->NotTDCustomer = $NotTDCustomer;
+        $requestData->Address       = "$address1" . ($address2 ? " $address2" : "");
+        $requestData->CountryCode   = $country;
+        $requestData->County        = $state;
+        $requestData->City          = $city;
+        $requestData->PostalCode    = $postalCode;
+
+        if ($email != null) {
+            $requestData->Email = $email;
+        }
+
+        $phone = $this->order->get_billing_phone();
+        if ($phone) {
+            $requestData->PhoneNo = $phone;
+        }
+
+        if ($this->vatNumber) {
+            $requestData->VatRegNo = $this->vatNumber;
+        }
+
+        // Sisestab uue ettevõtte
+        $createResponse = $this->api->sendRequest($requestData, $endpoint);
+        return $createResponse["Id"];
     }
 
 
