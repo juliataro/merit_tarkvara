@@ -28,32 +28,77 @@ class MeritSalesInvoice
 
         $body                 = new stdClass();
         $body->Customer       = (object)['Id' => $this->clientId];
-        $body->InvoiceNo      = $this->getOrderTotal();
         $body->DocDate        = $this->order->get_date_created()->date('Ymd');
         $body->InvoiceNo      = "#" . $this->order->get_id();
         $body->InvoiceRow     = $orderRows['rows'];
         $body->TaxAmount      = [$orderRows['TaxAmount']];
-        $body->RoundingAmount = $this->getRoundingAmount($orderRows['rows']);
-        $body->TotalAmount    = $this->getOrderTotal();
+        $roundingAmount       = $this->getRoundingAmount($orderRows['rows']);
+        $body->RoundingAmount = $roundingAmount;
+        $body->TotalAmount    = number_format($this->getRowsTotal($orderRows['rows']), 2, ".", "");
 
-//        wp_send_json($body);
+
+        $orderPaymentMethod      = $this->order->get_payment_method();
+        $orderPaymentMethodTitle = $this->order->get_payment_method_title();
+
+        //use method ID and title for fallback
+        if (isset($settings->paymentMethodsPaid) && !($settings->paymentMethodsPaid->$orderPaymentMethod || $settings->paymentMethodsPaid->$orderPaymentMethodTitle)) {
+            error_log("Payment method $orderPaymentMethod is not allowed to be marked paid");
+        } else {
+            error_log("Marking order $body->InvoiceNo paid");
+            $body->Payment = $this->getPaymentData();
+        }
+
 
         $salesInvoice = $this->api->sendRequest($body, $endpoint);
-        wp_send_json($salesInvoice);
         return ["invoice" => $salesInvoice];
+    }
+
+    public function getPaymentData()
+    {
+        $orderPaymentMethod      = $this->order->get_payment_method();
+        $orderCurrencyCode       = $this->order->get_currency();
+        $paymentMethod           = null;
+        $settings                = json_decode(get_option("merit_settings"));
+        if (is_array($settings->currencyBanks)) {
+            foreach ($settings->currencyBanks as $bank) {
+                if ($bank->currency_code == $orderCurrencyCode && $bank->payment_method == $orderPaymentMethod) {
+                    $paymentMethod = $bank->currency_bank;
+                    break;
+                }
+            }
+        }
+
+        if ($paymentMethod == null) {
+            $paymentMethod = $settings->defaultPayment;
+        }
+
+        return (object)[
+            "PaymentMethod" => $paymentMethod,
+            "PaidAmount"    => $this->order->get_total(),
+            "PaymDate"      => $this->order->get_date_created()->date("YmdHis"),
+        ];
+    }
+
+    public function getRowsTotal($rows)
+    {
+        $rowsTotalCents = 0;
+        foreach ($rows as $row) {
+            $rowCents       = intval(floatval($row->Price) * 100 * $row->Quantity, 2);
+            $rowsTotalCents += $rowCents;
+        }
+
+        return number_format($rowsTotalCents / 100, 2, ".", "");
     }
 
     public function getRoundingAmount($rows)
     {
         $rowsTotalCents = 0;
         foreach ($rows as $row) {
-            $rowCents       = intval(floatval($row->Price) * 100, 2);
+            $rowCents       = intval(floatval($row->Price) * 100 * $row->Quantity, 2);
             $rowsTotalCents += $rowCents;
-            $rowsTotalCents += intval($rowCents * $this->getVatPc() / 100);
+            $rowsTotalCents += round($rowCents * $this->getVatPc() / 100);
         }
-
-        $roundingAmount = number_format(($this->getOrderTotal() * 100 + $this->getTotalTax() * 100 - $rowsTotalCents) / 100,
-            2);
+        $roundingAmount = number_format(($this->getOrderTotal() * 100 + $this->getTotalTax() * 100 - $rowsTotalCents) / 100, 2);
 
         return $roundingAmount;
     }
@@ -80,12 +125,20 @@ class MeritSalesInvoice
         }
 
         if ($this->order->get_shipping_total() > 0) {
-            $settings                = json_decode(get_option("merit_settings"));
-            $itemObject              = new stdClass();
-            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
-            $itemObject->description = "Woocommerce Shipping";
-            $rows[]                  = $itemObject;
+            $settings              = json_decode(get_option("merit_settings"));
+            $shippingRow           = new stdClass();
+            $code                  = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
+            $shippingRow->Item     = (object)[
+                'Code'        => $code,
+                'Description' => 'WooCommerce shipping',
+                'Type'        => 2,
+            ];
+            $shippingRow->Quantity = 1;
+            $shippingRow->Price    = number_format($this->order->get_shipping_total(), 2, ".", "");
+            $shippingRow->TaxId    = $taxId;
+            $rows[]                = $shippingRow;
         }
+
         return [
             'rows'      => $rows,
             'TaxAmount' => (object)[
@@ -159,56 +212,6 @@ class MeritSalesInvoice
             'code'        => $code,
             'description' => $description
         ];
-    }
-
-    public function getInvoiceRowItem()
-    {
-        foreach ($this->order->get_items() as $item) {
-            $product = $item->get_product();
-
-            $itemObject = new stdClass();
-            if ($product == null) {
-                error_log("Merit Product not found for order item " . $item->get_id());
-                $itemObject->description = $item->get_name();
-                $code                    = "wc_missing_product_" . $item->get_id();
-            } else {
-                $code = $product->get_sku();
-                if ($code == null || strlen($code) == 0) {
-                    $code = "wc_product_" . $product->get_id();
-                }
-
-                //in case
-                $itemObject->description = strlen($product->get_name()) == 0 ? $product->get_description() : $product->get_name();
-            }
-
-            if (strlen($itemObject->description) == 0) {
-                $itemObject->description = $code;
-            }
-            // Remove unsupported UTF-8 multibyte characters.
-            $itemObject->code        = $code;
-            $itemObject->description = preg_replace('/[\xF0-\xF7].../s', '_', $itemObject->description);
-
-            $settings = json_decode(get_option("sa_settings"));
-            if ($settings && $settings->objectId) {
-                $itemObject->objectId = $settings->objectId;
-
-            }
-            $rows[] = $itemObject;
-        }
-        if ($this->order->get_shipping_total() > 0) {
-            $settings                = json_decode(get_option("merit_settings"));
-            $itemObject              = new stdClass();
-            $itemObject->code        = isset($settings->defaultShipping) ? $settings->defaultShipping : "shipping";
-            $itemObject->description = "Woocommerce Shipping";
-
-            $settings = json_decode(get_option("merit_settings"));
-            if ($settings && $settings->objectId) {
-                $itemObject->objectId = $settings->objectId;
-            }
-            $rows[] = $itemObject;
-        }
-        return $rows;
-
     }
 
     public function getTotalTax()

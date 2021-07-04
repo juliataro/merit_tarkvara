@@ -7,7 +7,6 @@ if (!defined('ABSPATH')) {
 include_once('MeritClient.php');
 include_once('MeritSalesInvoice.php');
 include_once('MeritApi.php');
-include_once('MeritPayment.php');
 include_once('MeritArticle.php');
 
 class MeritClass
@@ -29,12 +28,10 @@ class MeritClass
             $clientId          = $meritClient->getClient();
             $meritSalesInvoice = new MeritSalesInvoice($order, $clientId);
 
-            $invoice      = $meritSalesInvoice->saveInvoice();
-            $meritPayment = new MeritPayment($order, $invoice);
-            $meritPayment->createPayment();
-            update_post_meta($order_id, 'merit_invoice_id', $invoice['invoice']['invoiceNumber']);
-            error_log("Merits sales invoice created for order $order_id - " . $invoice['invoice']['invoiceNumber']);
-            $order->add_order_note("Invoice sent to Merit: " . $invoice['invoice']['invoiceNumber']);
+            $invoice = $meritSalesInvoice->saveInvoice();
+            update_post_meta($order_id, 'merit_invoice_id', $invoice['invoice']['InvoiceId']);
+            error_log("Merits sales invoice created for order $order_id - " . $invoice['invoice']['InvoiceId']);
+            $order->add_order_note("Invoice sent to Merit: " . $invoice['invoice']['InvoiceId']);
 
             $invoiceIdsString = get_option('merit_failed_orders');
             $invoiceIds       = json_decode($invoiceIdsString);
@@ -65,36 +62,6 @@ class MeritClass
 
     public static function retryFailedOrders()
     {
-        $offerIdsString = get_option('merit_failed_offers');
-        error_log("Retrying offers $offerIdsString");
-
-        $retryCount = json_decode(get_option('merit_failed_offer_retries'));
-        if (!is_array($retryCount)) {
-            $retryCount = [];
-        }
-
-        $offerIds = json_decode($offerIdsString);
-
-        if (is_array($offerIds)) {
-            update_option('merit_failed_offers', json_encode([]));
-            foreach ($offerIds as $id) {
-                if (array_key_exists($id, $retryCount)) {
-                    if ($retryCount[$id] > 3) {
-                        error_log("Order $id offer sync has been retried over 3 times, dropping");
-                    } else {
-                        $retryCount[$id]++;
-                    }
-                } else {
-                    $retryCount[$id] = 1;
-                }
-                error_log("Retrying sending offer $id");
-                MeritClass::orderOfferStatusProcessing($id);
-            }
-            update_option('merit_failed_offers_retries', json_encode($retryCount));
-        } else {
-            error_log("Unable to parse failed offers: $offerIdsString");
-        }
-
         $invoiceIdsString = get_option('merit_failed_orders');
         error_log("Retrying orders $invoiceIdsString");
 
@@ -135,18 +102,7 @@ class MeritClass
         $settings->defaultShipping = sanitize_text_field($unSanitized->defaultShipping);
         $settings->defaultPayment  = sanitize_text_field($unSanitized->defaultPayment);
         $settings->vat_number_meta = sanitize_text_field($unSanitized->vat_number_meta);
-        $settings->warehouseId     = sanitize_text_field($unSanitized->warehouseId);
-        $settings->importServices  = isset($unSanitized->importServices) && $unSanitized->importServices === true;
-        $settings->importProducts  = isset($unSanitized->importProducts) && $unSanitized->importProducts === true;
-        $settings->importInventory = isset($unSanitized->importInventory) && $unSanitized->importInventory === true;
-        $settings->inventoryFilter = sanitize_text_field($unSanitized->inventoryFilter);
-        $objectId                  = sanitize_text_field($unSanitized->objectId);
 
-        if (preg_match("/^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/", $objectId)) {
-            $settings->objectId = $objectId;
-        } else {
-            $settings->objectId = null;
-        }
         if (!$settings->defaultShipping) {
             $settings->defaultShipping = "shipping";
         }
@@ -186,17 +142,6 @@ class MeritClass
             }
         }
 
-        $settings->offer_statuses = [];
-        foreach ($unSanitized->offer_statuses as $status) {
-            if (in_array($status, $allowedStatuses) && !in_array($status, $settings->statuses)) {
-                $settings->offer_statuses[] = $status;
-            }
-        }
-
-        if (count($settings->statuses) == 0 && count($settings->offer_statuses) == 0) {
-            $settings->statuses = ['completed', 'processing'];
-        }
-
         update_option('merit_settings', json_encode($settings));
 
         wp_send_json(['status' => "OK", 'settings' => $settings]);
@@ -213,21 +158,6 @@ class MeritClass
         }
         if (!isset($currentSettings->vat_number_meta)) {
             $currentSettings->vat_number_meta = "vat_number";
-        }
-        if (!isset($currentSettings->warehouseId)) {
-            $currentSettings->warehouseId = null;
-        }
-        if (!isset($currentSettings->importServices)) {
-            $currentSettings->warehouseId = false;
-        }
-        if (!isset($currentSettings->importProducts)) {
-            $currentSettings->importProducts = true;
-        }
-        if (!isset($currentSettings->importInventory)) {
-            $currentSettings->importInventory = true;
-        }
-        if (!isset($currentSettings->inventoryFilter)) {
-            $currentSettings->inventoryFilter = "";
         }
         if (!isset($currentSettings->paymentMethods) || !is_object($currentSettings->paymentMethods)) {
             $currentSettings->paymentMethods = new stdClass();
@@ -246,9 +176,6 @@ class MeritClass
                 'processing',
                 'completed'
             ];
-        }
-        if (!isset($currentSettings->offer_statuses) || !is_array($currentSettings->offer_statuses)) {
-            $currentSettings->offer_statuses = [];
         }
 
         return $currentSettings;
@@ -307,6 +234,7 @@ class MeritClass
                     <th>Merit private key</th>
                     <td>
                         <input size="50"
+                               type="password"
                                data-vv-name="apiSecret"
                                v-validate="'required'"
                                v-bind:class="{'notice notice-error':errors.first('apiSecret')}"
@@ -331,16 +259,6 @@ class MeritClass
                                v-validate="'required'"
                                v-bind:class="{'notice notice-error':errors.first('defaultPayment')}"
                                v-model="settings.defaultPayment"/>
-                    </td>
-                </tr>
-
-                <tr valign="middle">
-                    <th></th>
-                    <td>
-                        <button @click="importProducts" class="button-primary woocommerce-save-button"
-                                :disabled="syncInProgress">
-                            Sync products from Merit
-                        </button>
                     </td>
                 </tr>
 
@@ -396,45 +314,6 @@ class MeritClass
                         <td>
                             <label>Mark paid? </label>
                             <input type="checkbox" v-model="settings.paymentMethodsPaid[method]">
-                        </td>
-                    </tr>
-                </table>
-
-                <h2>Warehouse and import config</h2>
-                <small>What type of articles to sync from Merit and what warehouses to use
-                </small>
-                <table class="form-table">
-                    <tr valign="top">
-                        <th>Import Services</th>
-                        <td>
-                            <input type="checkbox" v-model="settings.importServices">
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th>Import Products</th>
-                        <td>
-                            <input type="checkbox" v-model="settings.importProducts">
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th>Import Warehouse Inventory</th>
-                        <td>
-                            <input type="checkbox" v-model="settings.importInventory">
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th>Warehouse filter (Overrides others)</th>
-                        <td>
-                            <input type="text" v-model="settings.inventoryFilter"><br>
-                            <small>Comma separate list of Inventory account (Laokonto) to use when synching product stock quantities from eg 10710,10741. If not empty then overrides filters
-                                above.</small>
-                        </td>
-                    </tr>
-                    <tr valign="top">
-                        <th>What warehouse to use when sending sales invoice.</th>
-                        <td>
-                            <input type="text" v-model="settings.warehouseId"><br>
-                            <small>Leave empty if not not relevant</small>
                         </td>
                     </tr>
                 </table>
@@ -590,6 +469,5 @@ class MeritClass
 
     public static function loadAsyncClass()
     {
-        new MeritArticleAsync();
     }
 }
