@@ -50,7 +50,6 @@ OÜ, AS, MTÜ, KÜ and FIE are removed from the beginning and end of the name an
 * Plugin does not handle errors which come from exceeding rate limits or unpaid Merit invoices.
 * If there are errors then invoices might be missing and rest of the Woocommerce functionality keeps on working
 * Merit API key, API secret and Payment account name must be configured before plugin will start working properly.
-* If plugin creates offer and this offer is deleted by the time invoice is created then creating invoice will fail.
 * Exact shipping method is not sent to Merit
 
 These shortcomings can be resolved by additional development. If these are problem for you then please get in touch with margus.pala@gmail.com

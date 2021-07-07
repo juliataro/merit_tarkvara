@@ -1,7 +1,6 @@
 <?php
 /**
  * Plugin Name: Merit accounting software and WooCommerce integration
- * Plugin URI: https://github.com/juliataro/merit_tarkvara
  * Description: This plugin creates sales invoices in the merit.ee Online Merit after Woocommerce order creation
  * Version: 1.0
  * Author: Julia Taro

@@ -274,16 +274,6 @@ class MeritClass
             <div v-show="settings.showAdvanced">
                 <hr>
 
-                <h2>Order statuses to send to Merit as Offer (Pakkumine)</h2>
-                <small>These statuses are saved in Merits as Offer. Make sure API account has permission!</small>
-                <br><br>
-                <select v-model="settings.offer_statuses" multiple>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="on-hold">On hold</option>
-                    <option value="completed">Completed</option>
-                </select>
-
                 <h2>Order statuses to send to Merit as Invoice (Müügiarve)</h2>
                 <small>If none selected then default Processing and Completed are used. Use CTRL+click to choose
                     multiple values
