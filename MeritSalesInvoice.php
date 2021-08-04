@@ -40,6 +40,8 @@ class MeritSalesInvoice
         $orderPaymentMethod      = $this->order->get_payment_method();
         $orderPaymentMethodTitle = $this->order->get_payment_method_title();
 
+        $settings           = json_decode(get_option("merit_settings"));
+
         //use method ID and title for fallback
         if (isset($settings->paymentMethodsPaid) && !($settings->paymentMethodsPaid->$orderPaymentMethod || $settings->paymentMethodsPaid->$orderPaymentMethodTitle)) {
             error_log("Payment method $orderPaymentMethod is not allowed to be marked paid");
@@ -55,10 +57,10 @@ class MeritSalesInvoice
 
     public function getPaymentData()
     {
-        $orderPaymentMethod      = $this->order->get_payment_method();
-        $orderCurrencyCode       = $this->order->get_currency();
-        $paymentMethod           = null;
-        $settings                = json_decode(get_option("merit_settings"));
+        $orderPaymentMethod = $this->order->get_payment_method();
+        $orderCurrencyCode  = $this->order->get_currency();
+        $paymentMethod      = null;
+        $settings           = json_decode(get_option("merit_settings"));
         if (is_array($settings->currencyBanks)) {
             foreach ($settings->currencyBanks as $bank) {
                 if ($bank->currency_code == $orderCurrencyCode && $bank->payment_method == $orderPaymentMethod) {
@@ -143,7 +145,7 @@ class MeritSalesInvoice
             'rows'      => $rows,
             'TaxAmount' => (object)[
                 'TaxId'  => $taxId,
-                'Amount' => $this->getTotalTax()
+                'Amount' => number_format($this->getTotalTax(), 2, ".", "")
             ]
         ];
     }
@@ -152,8 +154,7 @@ class MeritSalesInvoice
     {
         $totalTax = $this->getTotalTax();
         $subTotal = $this->getOrderTotal();
-        $vatPc    = round($totalTax * 100 / $subTotal);
-        return $vatPc;
+        return round($totalTax * 100 / $subTotal);
     }
 
     protected function getTaxId()
@@ -180,6 +181,10 @@ class MeritSalesInvoice
                     break;
                 }
             }
+        }
+
+        if (!$taxId) {
+            error_log("TaxID for $vatPc not found. all taxes: " . json_encode($taxes));
         }
 
         return $taxId;

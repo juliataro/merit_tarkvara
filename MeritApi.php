@@ -49,6 +49,8 @@ class MeritApi
             'timeout' => 60
         ];
 
+        error_log("Sending Merit API call: $url ".json_encode($args));
+
         $response        = wp_remote_post($url, $args);
         $response_code   = wp_remote_retrieve_response_code($response);
         $meritResponse   = wp_remote_retrieve_body($response);
