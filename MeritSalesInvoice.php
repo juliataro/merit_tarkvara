@@ -29,7 +29,7 @@ class MeritSalesInvoice
         $body                 = new stdClass();
         $body->Customer       = (object)['Id' => $this->clientId];
         $body->DocDate        = $this->order->get_date_created()->date('Ymd');
-        $body->InvoiceNo      = "#" . $this->order->get_id();
+        $body->InvoiceNo      = $this->order->get_id();
         $body->InvoiceRow     = $orderRows['rows'];
         $body->TaxAmount      = [$orderRows['TaxAmount']];
         $roundingAmount       = $this->getRoundingAmount($orderRows['rows']);
